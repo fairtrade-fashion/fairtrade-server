@@ -1,0 +1,20 @@
+meta {
+  name: verify payment
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{base_url}}payments/verify?trxref=b988gqo547&reference=b988gqo547
+  body: none
+  auth: bearer
+}
+
+params:query {
+  trxref: b988gqo547
+  reference: b988gqo547
+}
+
+auth:bearer {
+  token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Indpc2RvbS5kZXYyMUBnbWFpbC5jb20iLCJzdWIiOiI4YWE5MjdhNC03NzdjLTRhNmItODc1Ny00ZmE1M2I0N2ZmNTEiLCJyb2xlIjoiQURNSU4iLCJpYXQiOjE3Mjc3NzkwMzcsImV4cCI6MTcyNzg2NTQzN30.o1ChcLaxVunh96IWPv2X24fUQtvMzV_EvKWI6QSlI2k
+}
