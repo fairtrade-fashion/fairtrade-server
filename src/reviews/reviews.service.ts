@@ -129,7 +129,7 @@ export class ReviewsService {
     });
 
     await this.updateProductAverageRating(review.productId);
-
+    console.log('perfect');
     return review;
   }
 
