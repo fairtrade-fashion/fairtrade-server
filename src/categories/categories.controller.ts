@@ -25,12 +25,12 @@ import { Roles } from 'src/common/decorators/roles.decorators';
 
 @ApiTags('categories')
 @Controller('categories')
-@UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
 export class CategoriesController {
   constructor(private readonly categoriesService: CategoriesService) {}
 
   @Post()
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
   @ApiOperation({ summary: 'Create a new category' })
   @ApiResponse({
@@ -56,6 +56,7 @@ export class CategoriesController {
   }
 
   @Patch(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
   @ApiOperation({ summary: 'Update a category' })
   @ApiResponse({
@@ -70,6 +71,7 @@ export class CategoriesController {
   }
 
   @Delete(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
   @ApiOperation({ summary: 'Delete a category' })
   @ApiResponse({
