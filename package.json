@@ -31,6 +31,7 @@
     "@nestjs/swagger": "^7.4.2",
     "@nestjs/websockets": "^10.4.4",
     "@prisma/client": "^5.20.0",
+    "@scalar/nestjs-api-reference": "^0.3.163",
     "@types/bcrypt": "^5.0.2",
     "@types/nodemailer": "^6.4.16",
     "axios": "^1.7.7",

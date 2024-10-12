@@ -4,6 +4,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { HttpExceptionFilter } from './common/filters/http-exeception.filter';
 import { IoAdapter } from '@nestjs/platform-socket.io';
+import { apiReference } from '@scalar/nestjs-api-reference';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -21,6 +22,18 @@ async function bootstrap() {
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/v2/docs', app, document);
+  // const OpenApiSpecification =
+  /* … */
+
+  app.use(
+    '/reference',
+    apiReference({
+      theme: 'kepler',
+      spec: {
+        content: document,
+      },
+    }),
+  );
 
   await app.listen(8080);
 }
