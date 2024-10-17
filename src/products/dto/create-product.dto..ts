@@ -5,8 +5,21 @@ import {
   IsArray,
   IsOptional,
   IsUrl,
+  ValidateNested,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+
+class ProductVariationDto {
+  @ApiProperty({ description: 'The ID of the size or color' })
+  @IsString()
+  id: string;
+
+  @ApiProperty({ description: 'The stock quantity for this variation' })
+  @IsNumber()
+  @IsPositive()
+  stock: number;
+}
 
 export class CreateProductDto {
   @ApiProperty({ description: 'The name of the product' })
@@ -40,7 +53,21 @@ export class CreateProductDto {
   @IsUrl({}, { each: true })
   imageUrls?: string[];
 
-  @ApiProperty({ description: 'The Stock Keeping Unit (SKU) of the product' })
-  @IsString()
-  sku: string;
+  @ApiProperty({
+    description: 'The sizes of the product',
+    type: [ProductVariationDto],
+  })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ProductVariationDto)
+  sizes: ProductVariationDto[];
+
+  @ApiProperty({
+    description: 'The colors of the product',
+    type: [ProductVariationDto],
+  })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ProductVariationDto)
+  colors: ProductVariationDto[];
 }

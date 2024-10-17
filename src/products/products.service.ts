@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Product, Prisma } from '@prisma/client';
@@ -10,6 +11,9 @@ import { UpdateProductDto } from './dto/update-product.dto';
 import { CreateProductDto } from './dto/create-product.dto.';
 import { EmailService } from 'src/email/email.service';
 import { ConfigService } from '@nestjs/config';
+import { v4 as uuidv4 } from 'uuid';
+import { CreateSizeDto } from './dto/create-size.dto';
+import { CreateColorDto } from './dto/create-color.dto';
 
 @Injectable()
 export class ProductsService {
@@ -22,19 +26,89 @@ export class ProductsService {
     this.lowStockThreshold = this.configService.get('LOW_STOCK_THRESHOLD') || 5;
   }
 
+  async createSize(createSizeDto: CreateSizeDto) {
+    try {
+      return await this.prisma.size.create({
+        data: createSizeDto,
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException('Size already exists');
+      }
+      throw error;
+    }
+  }
+
+  async getSizes() {
+    return await this.prisma.size.findMany({
+      select: {
+        name: true,
+        id: true,
+      },
+    });
+  }
+
+  async getColors() {
+    const color = await this.prisma.color.findMany({
+      select: {
+        name: true,
+        id: true,
+      },
+    });
+    return color;
+  }
+
+  async createColor(createColorDto: CreateColorDto) {
+    try {
+      return await this.prisma.color.create({
+        data: createColorDto,
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException('Color already exists');
+      }
+      throw error;
+    }
+  }
+
   async create(createProductDto: CreateProductDto): Promise<Product> {
-    const { categoryId, imageUrls, ...productData } = createProductDto;
+    const { categoryId, imageUrls, sizes, colors, ...productData } =
+      createProductDto;
 
     try {
       return await this.prisma.product.create({
         data: {
           ...productData,
+          sku: uuidv4(),
           category: { connect: { id: categoryId } },
           images: imageUrls
             ? { create: imageUrls.map((url) => ({ url })) }
             : undefined,
+          sizes: {
+            create: sizes.map((size) => ({
+              size: { connect: { id: size.id } },
+              stock: size.stock,
+            })),
+          },
+          colors: {
+            create: colors.map((color) => ({
+              color: { connect: { id: color.id } },
+              stock: color.stock,
+            })),
+          },
         },
-        include: { category: true, images: true },
+        include: {
+          category: true,
+          images: true,
+          sizes: { include: { size: true } },
+          colors: { include: { color: true } },
+        },
       });
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
@@ -44,7 +118,7 @@ export class ProductsService {
           );
         }
         if (error.code === 'P2003') {
-          throw new BadRequestException('Invalid category ID');
+          throw new BadRequestException('Invalid category, size, or color ID');
         }
       }
       throw error;
@@ -63,32 +137,125 @@ export class ProductsService {
         skip,
         take,
         orderBy,
-        include: { category: true, images: true },
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          price: true,
+          sku: true,
+          stock: true,
+          createdAt: true,
+          updatedAt: true,
+          category: {
+            select: {
+              id: true,
+              name: true,
+              parentId: true,
+            },
+          },
+          images: {
+            select: {
+              id: true,
+              url: true,
+            },
+          },
+          sizes: {
+            select: {
+              id: true,
+              stock: true,
+              size: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
+          colors: {
+            select: {
+              id: true,
+              stock: true,
+              color: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
+        },
       }),
       this.prisma.product.count(),
     ]);
 
-    return { products, total };
+    return { products: products as unknown as Product[], total };
   }
 
   async findOne(id: string): Promise<Product> {
     const product = await this.prisma.product.findUnique({
       where: { id },
-      include: { category: true, images: true },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        price: true,
+        sku: false,
+        stock: true,
+        createdAt: true,
+        updatedAt: true,
+        images: {
+          select: {
+            id: true,
+            url: true,
+          },
+        },
+        category: {
+          select: {
+            id: true,
+            name: true,
+            parentId: true,
+          },
+        },
+        sizes: {
+          select: {
+            id: true,
+            stock: true,
+            size: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+        colors: {
+          select: {
+            id: true,
+            stock: true,
+            color: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!product) {
       throw new NotFoundException(`Product with ID ${id} not found`);
     }
 
-    return product;
+    return product as unknown as Product;
   }
 
   async update(
     id: string,
     updateProductDto: UpdateProductDto,
   ): Promise<Product> {
-    const { categoryId, imageUrls, ...productData } = updateProductDto;
+    const { categoryId, imageUrls, sizes, colors, ...productData } =
+      updateProductDto;
 
     try {
       return await this.prisma.product.update({
@@ -102,8 +269,31 @@ export class ProductsService {
                 create: imageUrls.map((url) => ({ url })),
               }
             : undefined,
+          sizes: sizes
+            ? {
+                deleteMany: {},
+                create: sizes.map((size) => ({
+                  size: { connect: { id: size.id } },
+                  stock: size.stock,
+                })),
+              }
+            : undefined,
+          colors: colors
+            ? {
+                deleteMany: {},
+                create: colors.map((color) => ({
+                  color: { connect: { id: color.id } },
+                  stock: color.stock,
+                })),
+              }
+            : undefined,
         },
-        include: { category: true, images: true },
+        include: {
+          category: true,
+          images: true,
+          sizes: { include: { size: true } },
+          colors: { include: { color: true } },
+        },
       });
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
@@ -116,7 +306,7 @@ export class ProductsService {
           );
         }
         if (error.code === 'P2003') {
-          throw new BadRequestException('Invalid category ID');
+          throw new BadRequestException('Invalid category, size, or color ID');
         }
       }
       throw error;
@@ -152,15 +342,58 @@ export class ProductsService {
         cursor,
         where,
         orderBy,
-        include: {
-          category: true,
-          images: true,
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          price: true,
+          sku: true,
+          stock: true,
+          createdAt: true,
+          updatedAt: true,
+          category: {
+            select: {
+              id: true,
+              name: true,
+              parentId: true,
+            },
+          },
+          images: {
+            select: {
+              id: true,
+              url: true,
+            },
+          },
+          sizes: {
+            select: {
+              id: true,
+              stock: true,
+              size: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
+          colors: {
+            select: {
+              id: true,
+              stock: true,
+              color: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
         },
       }),
       this.prisma.product.count({ where }),
     ]);
 
-    return { products, total };
+    return { products: products as unknown as Product[], total };
   }
 
   async updateProductStock(
@@ -198,6 +431,14 @@ export class ProductsService {
     return this.prisma.product.findMany({
       where: { stock: { lte: this.lowStockThreshold } },
       include: { category: true },
+    });
+  }
+
+  async getNewArrivals(limit: number = 10): Promise<Product[]> {
+    return this.prisma.product.findMany({
+      take: limit,
+      orderBy: { createdAt: 'desc' },
+      include: { category: true, images: true },
     });
   }
 }

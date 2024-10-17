@@ -42,7 +42,7 @@ export class CategoriesService {
   async findOne(id: string): Promise<Category> {
     const category = await this.prisma.category.findUnique({
       where: { id },
-      include: { parent: true, children: true },
+      include: { parent: true, children: true, products: true },
     });
 
     if (!category) {

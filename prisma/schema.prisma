@@ -40,6 +40,50 @@ model Product {
   wishlistItems WishlistItem[]
   reviews       Review[]
   averageRating Int?
+  sizes         ProductSize[]
+  colors        ProductColor[]
+}
+
+model Size {
+  id        String        @id @default(uuid())
+  name      String        @unique
+  products  ProductSize[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+}
+
+model Color {
+  id        String         @id @default(uuid())
+  name      String         @unique
+  products  ProductColor[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+}
+
+model ProductSize {
+  id        String   @id @default(uuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  sizeId    String
+  size      Size     @relation(fields: [sizeId], references: [id])
+  stock     Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([productId, sizeId])
+}
+
+model ProductColor {
+  id        String   @id @default(uuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  colorId   String
+  color     Color    @relation(fields: [colorId], references: [id])
+  stock     Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([productId, colorId])
 }
 
 model Category {
