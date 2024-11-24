@@ -11,7 +11,10 @@ import {
   DefaultValuePipe,
   UseGuards,
   ParseFloatPipe,
+  UseInterceptors,
+  UploadedFiles,
 } from '@nestjs/common';
+import { FilesInterceptor } from '@nestjs/platform-express';
 import { ProductsService } from './products.service';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { CreateSizeDto } from './dto/create-size.dto';
@@ -141,14 +144,19 @@ export class ProductsController {
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseInterceptors(FilesInterceptor('images'))
   @Roles('ADMIN')
   @ApiOperation({ summary: 'Create a new product (Admin only)' })
   @ApiResponse({
     status: 201,
     description: 'The product has been successfully created.',
   })
-  create(@Body() createProductDto: CreateProductDto) {
-    return this.productsService.create(createProductDto);
+  create(
+    @Body() createProductDto: CreateProductDto,
+    @UploadedFiles() files: Express.Multer.File[],
+  ) {
+    console.log(createProductDto);
+    return this.productsService.create(files, createProductDto);
   }
 
   @Get()
@@ -173,13 +181,18 @@ export class ProductsController {
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
+  @UseInterceptors(FilesInterceptor('images'))
   @ApiOperation({ summary: 'Update a product (Admin only)' })
   @ApiResponse({
     status: 200,
     description: 'The product has been successfully updated.',
   })
-  update(@Param('id') id: string, @Body() updateProductDto: UpdateProductDto) {
-    return this.productsService.update(id, updateProductDto);
+  update(
+    @Param('id') id: string,
+    @Body() updateProductDto: UpdateProductDto,
+    @UploadedFiles() files: Express.Multer.File[],
+  ) {
+    return this.productsService.update(id, files, updateProductDto);
   }
 
   @Delete(':id')

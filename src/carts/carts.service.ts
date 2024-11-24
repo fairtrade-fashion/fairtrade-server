@@ -13,13 +13,25 @@ export class CartsService {
   async getOrCreateCart(userId: string) {
     let cart = await this.prisma.cart.findFirst({
       where: { userId },
-      include: { items: { include: { product: true } } },
+      include: {
+        items: {
+          include: {
+            product: { include: { images: { select: { url: true } } } },
+          },
+        },
+      },
     });
 
     if (!cart) {
       cart = await this.prisma.cart.create({
         data: { userId },
-        include: { items: { include: { product: true } } },
+        include: {
+          items: {
+            include: {
+              product: { include: { images: { select: { url: true } } } },
+            },
+          },
+        },
       });
     }
 

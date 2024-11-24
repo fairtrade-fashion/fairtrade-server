@@ -14,16 +14,25 @@ import { ConfigService } from '@nestjs/config';
 import { v4 as uuidv4 } from 'uuid';
 import { CreateSizeDto } from './dto/create-size.dto';
 import { CreateColorDto } from './dto/create-color.dto';
+import { Client } from 'minio';
 
 @Injectable()
 export class ProductsService {
   private lowStockThreshold: number;
+  private readonly minioClient: Client;
   constructor(
     private prisma: PrismaService,
     private emailService: EmailService,
     private configService: ConfigService,
   ) {
     this.lowStockThreshold = this.configService.get('LOW_STOCK_THRESHOLD') || 5;
+    this.minioClient = new Client({
+      endPoint: this.configService.get('MINIO_ENDPOINT'),
+      port: Number(this.configService.get('MINIO_PORT')),
+      useSSL: this.configService.get('MINIO_USE_SSL') === 'true',
+      accessKey: this.configService.get('MINIO_ACCESS_KEY'),
+      secretKey: this.configService.get('MINIO_SECRET_KEY'),
+    });
   }
 
   async createSize(createSizeDto: CreateSizeDto) {
@@ -77,39 +86,88 @@ export class ProductsService {
     }
   }
 
-  async create(createProductDto: CreateProductDto): Promise<Product> {
-    const { categoryId, imageUrls, sizes, colors, ...productData } =
+  async create(
+    files: Express.Multer.File[],
+    createProductDto: CreateProductDto,
+  ) {
+    if (!Array.isArray(files) || files.length === 0) {
+      throw new BadRequestException('At least one image file is required');
+    }
+
+    const bucketName = 'fairtrade-products';
+    const imageUrls: string[] = [];
+
+    // Ensure the bucket exists
+    const bucketExists = await this.minioClient
+      .bucketExists(bucketName)
+      .catch(() => false);
+    if (!bucketExists) {
+      await this.minioClient.makeBucket(bucketName, 'us-east-1');
+    }
+
+    // Process each file
+    for (const file of files) {
+      const uniqueFileName = `${uuidv4()}-${file.originalname}`;
+      await this.minioClient.putObject(
+        bucketName,
+        uniqueFileName,
+        file.buffer,
+        file.size,
+        {
+          'Content-Type': file.mimetype,
+        },
+      );
+
+      // Generate a pre-signed URL for the uploaded file
+      const imageUrl = await this.minioClient.presignedGetObject(
+        bucketName,
+        uniqueFileName,
+      );
+      imageUrls.push(imageUrl);
+    }
+
+    const { categoryId, sizes, colors, stock, description, price, name } =
       createProductDto;
+    const parsedSizes = JSON.parse(sizes) as { id: string; stock: number }[];
+    const parsedColors = JSON.parse(colors) as { id: string; stock: number }[];
+    const parsedStock = Number(stock);
+    const parsedPrice = Number(price);
 
     try {
-      return await this.prisma.product.create({
+      const newProduct = await this.prisma.product.create({
         data: {
-          ...productData,
-          sku: uuidv4(),
+          name: name,
+          description,
+          price: parsedPrice,
+          stock: parsedStock,
           category: { connect: { id: categoryId } },
+          sku: uuidv4(),
           images: imageUrls
             ? { create: imageUrls.map((url) => ({ url })) }
             : undefined,
           sizes: {
-            create: sizes.map((size) => ({
+            create: parsedSizes.map((size) => ({
               size: { connect: { id: size.id } },
               stock: size.stock,
             })),
           },
           colors: {
-            create: colors.map((color) => ({
+            create: parsedColors.map((color) => ({
               color: { connect: { id: color.id } },
               stock: color.stock,
             })),
           },
         },
         include: {
-          category: true,
-          images: true,
-          sizes: { include: { size: true } },
-          colors: { include: { color: true } },
+          images: { select: { url: true } },
+          sizes: { select: { size: { select: { name: true } }, stock: true } },
+          colors: {
+            select: { color: { select: { name: true } }, stock: true },
+          },
+          category: { select: { name: true } },
         },
       });
+      return newProduct;
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
         if (error.code === 'P2002') {
@@ -250,56 +308,220 @@ export class ProductsService {
     return product as unknown as Product;
   }
 
+  // async update(
+  //   id: string,
+  //   updateProductDto: UpdateProductDto,
+  // ): Promise<Product> {
+  //   const { categoryId, sizes, colors, ...productData } = updateProductDto;
+
+  //   try {
+  //     return await this.prisma.product.update({
+  //       where: { id },
+  //       data: {
+  //         ...productData,
+  //         category: categoryId ? { connect: { id: categoryId } } : undefined,
+  //         // images: []
+  //         //   ? {
+  //         //       deleteMany: {},
+  //         //       create: [].map((url) => ({ url })),
+  //         //     }
+  //         //   : undefined,
+  //         // images:["dsd"],
+  //         sizes: sizes
+  //           ? {
+  //               deleteMany: {},
+  //               create: sizes.map((size) => ({
+  //                 size: { connect: { id: size.id } },
+  //                 stock: size.stock,
+  //               })),
+  //             }
+  //           : undefined,
+  //         colors: colors
+  //           ? {
+  //               deleteMany: {},
+  //               create: colors.map((color) => ({
+  //                 color: { connect: { id: color.id } },
+  //                 stock: color.stock,
+  //               })),
+  //             }
+  //           : undefined,
+  //       },
+  //       include: {
+  //         category: true,
+  //         images: true,
+  //         sizes: { include: { size: true } },
+  //         colors: { include: { color: true } },
+  //       },
+  //     });
+  //   } catch (error) {
+  //     if (error instanceof Prisma.PrismaClientKnownRequestError) {
+  //       if (error.code === 'P2025') {
+  //         throw new NotFoundException(`Product with ID ${id} not found`);
+  //       }
+  //       if (error.code === 'P2002') {
+  //         throw new BadRequestException(
+  //           'A product with this name already exists',
+  //         );
+  //       }
+  //       if (error.code === 'P2003') {
+  //         throw new BadRequestException('Invalid category, size, or color ID');
+  //       }
+  //     }
+  //     throw error;
+  //   }
+  // }
+
   async update(
     id: string,
+    files: Express.Multer.File[],
     updateProductDto: UpdateProductDto,
   ): Promise<Product> {
-    const { categoryId, imageUrls, sizes, colors, ...productData } =
+    const { categoryId, sizes, colors, description, price, name, stock } =
       updateProductDto;
 
+    // Handle image uploads if new files are provided
+    const imageUrls: string[] = [];
+    if (files && files.length > 0) {
+      const bucketName = 'fairtrade-products';
+
+      // Ensure the bucket exists
+      const bucketExists = await this.minioClient
+        .bucketExists(bucketName)
+        .catch(() => false);
+      if (!bucketExists) {
+        await this.minioClient.makeBucket(bucketName, 'us-east-1');
+      }
+
+      // Process each file
+      for (const file of files) {
+        const uniqueFileName = `${uuidv4()}-${file.originalname}`;
+        await this.minioClient.putObject(
+          bucketName,
+          uniqueFileName,
+          file.buffer,
+          file.size,
+          {
+            'Content-Type': file.mimetype,
+          },
+        );
+
+        // Generate a pre-signed URL for the uploaded file
+        const imageUrl = await this.minioClient.presignedGetObject(
+          bucketName,
+          uniqueFileName,
+        );
+        imageUrls.push(imageUrl);
+      }
+    }
+
+    // Parse sizes and colors if provided
+    const parsedSizes = sizes
+      ? (JSON.parse(sizes) as { id: string; stock: number }[])
+      : undefined;
+    const parsedColors = colors
+      ? (JSON.parse(colors) as { id: string; stock: number }[])
+      : undefined;
+    const parsedStock = stock ? Number(stock) : undefined;
+    const parsedPrice = price ? Number(price) : undefined;
+
     try {
-      return await this.prisma.product.update({
+      // First, fetch the existing product to handle image updates properly
+      const existingProduct = await this.prisma.product.findUnique({
         where: { id },
-        data: {
-          ...productData,
-          category: categoryId ? { connect: { id: categoryId } } : undefined,
-          images: imageUrls
-            ? {
-                deleteMany: {},
-                create: imageUrls.map((url) => ({ url })),
-              }
-            : undefined,
-          sizes: sizes
-            ? {
-                deleteMany: {},
-                create: sizes.map((size) => ({
-                  size: { connect: { id: size.id } },
-                  stock: size.stock,
-                })),
-              }
-            : undefined,
-          colors: colors
-            ? {
-                deleteMany: {},
-                create: colors.map((color) => ({
-                  color: { connect: { id: color.id } },
-                  stock: color.stock,
-                })),
-              }
-            : undefined,
-        },
+        include: { images: true },
+      });
+
+      if (!existingProduct) {
+        throw new NotFoundException(`Product with ID ${id} not found`);
+      }
+
+      // Prepare the update data
+      const updateData: Prisma.ProductUpdateInput = {
+        ...(name && { name }),
+        ...(description && { description }),
+        ...(parsedPrice && { price: parsedPrice }),
+        ...(parsedStock && { stock: parsedStock }),
+        ...(categoryId && { category: { connect: { id: categoryId } } }),
+      };
+
+      // Handle image updates if new files were uploaded
+      if (imageUrls.length > 0) {
+        updateData.images = {
+          deleteMany: {}, // Remove existing images
+          create: imageUrls.map((url) => ({ url })),
+        };
+      }
+
+      // Handle sizes update if provided
+      if (parsedSizes) {
+        updateData.sizes = {
+          deleteMany: {}, // Remove existing sizes
+          create: parsedSizes.map((size) => ({
+            size: { connect: { id: size.id } },
+            stock: size.stock,
+          })),
+        };
+      }
+
+      // Handle colors update if provided
+      if (parsedColors) {
+        updateData.colors = {
+          deleteMany: {}, // Remove existing colors
+          create: parsedColors.map((color) => ({
+            color: { connect: { id: color.id } },
+            stock: color.stock,
+          })),
+        };
+      }
+
+      // Perform the update
+      const updatedProduct = await this.prisma.product.update({
+        where: { id },
+        data: updateData,
         include: {
-          category: true,
-          images: true,
-          sizes: { include: { size: true } },
-          colors: { include: { color: true } },
+          category: {
+            select: {
+              id: true,
+              name: true,
+              parentId: true,
+            },
+          },
+          images: {
+            select: {
+              id: true,
+              url: true,
+            },
+          },
+          sizes: {
+            select: {
+              id: true,
+              stock: true,
+              size: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
+          colors: {
+            select: {
+              id: true,
+              stock: true,
+              color: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
         },
       });
+
+      return updatedProduct as unknown as Product;
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        if (error.code === 'P2025') {
-          throw new NotFoundException(`Product with ID ${id} not found`);
-        }
         if (error.code === 'P2002') {
           throw new BadRequestException(
             'A product with this name already exists',

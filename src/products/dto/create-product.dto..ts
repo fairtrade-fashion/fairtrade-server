@@ -2,13 +2,13 @@ import {
   IsString,
   IsNumber,
   IsPositive,
-  IsArray,
-  IsOptional,
-  IsUrl,
-  ValidateNested,
+  // IsArray,
+  // ValidateNested,
+  // IsInt,
+  // isInt,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+// import { Type } from 'class-transformer';
 
 class ProductVariationDto {
   @ApiProperty({ description: 'The ID of the size or color' })
@@ -31,13 +31,15 @@ export class CreateProductDto {
   description: string;
 
   @ApiProperty({ description: 'The price of the product' })
-  @IsNumber()
-  @IsPositive()
+  // @IsInt()
+  // @IsPositive()
+  @IsString()
   price: number;
 
   @ApiProperty({ description: 'The stock quantity of the product' })
-  @IsNumber()
-  @IsPositive()
+  // @IsInt()
+  @IsString()
+  // @IsPositive()
   stock: number;
 
   @ApiProperty({ description: 'The category ID of the product' })
@@ -48,26 +50,23 @@ export class CreateProductDto {
     description: 'The image URLs of the product',
     required: false,
   })
-  @IsOptional()
-  @IsArray()
-  @IsUrl({}, { each: true })
-  imageUrls?: string[];
-
   @ApiProperty({
     description: 'The sizes of the product',
     type: [ProductVariationDto],
   })
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => ProductVariationDto)
-  sizes: ProductVariationDto[];
+  // @IsArray()
+  // @ValidateNested({ each: true })
+  // @Type(() => ProductVariationDto)
+  @IsString()
+  sizes: string;
 
   @ApiProperty({
     description: 'The colors of the product',
     type: [ProductVariationDto],
   })
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => ProductVariationDto)
-  colors: ProductVariationDto[];
+  // @IsArray()
+  // @ValidateNested({ each: true })
+  // @Type(() => ProductVariationDto)
+  @IsString()
+  colors: string;
 }

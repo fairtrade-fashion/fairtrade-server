@@ -44,7 +44,6 @@ export class CategoriesService {
       where: { id },
       include: {
         parent: true,
-
         children: {
           select: {
             id: true,
