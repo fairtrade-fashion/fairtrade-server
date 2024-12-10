@@ -6,28 +6,32 @@ import { OrderStatus } from '@prisma/client';
 export class AnalyticsService {
   constructor(private prisma: PrismaService) {}
 
-  async getTotalSales(startDate: Date, endDate: Date): Promise<number> {
+  async getTotalSales(startDate?: string, endDate?: string): Promise<{ total_sales:number }> {
+    const start = startDate? new Date(startDate) :  new Date('2024-01-01')
+    const end = endDate ? new Date(endDate) : new Date()
+
     const result = await this.prisma.order.aggregate({
       _sum: {
         total: true,
       },
       where: {
         createdAt: {
-          gte: startDate,
-          lte: endDate,
+          gte: start,
+          lte: end,
         },
-        status: OrderStatus.DELIVERED,
+        status: OrderStatus.PAID,
       },
     });
-
-    return result._sum.total || 0;
+    return {total_sales:result._sum.total || 0};
   }
 
+
   async getTopSellingProducts(limit: number = 10) {
-    const result = await this.prisma.orderItem.groupBy({
+    return this.prisma.orderItem.groupBy({
       by: ['productId'], // This should be a single-level array
       _sum: {
         quantity: true,
+        price: true,
       },
       orderBy: [
         {
@@ -38,7 +42,7 @@ export class AnalyticsService {
       ],
       take: limit, // or any other number you need
     });
-    return result;
+
   }
   async getOrdersByStatus(): Promise<any> {
     return this.prisma.order.groupBy({
@@ -61,6 +65,8 @@ export class AnalyticsService {
         createdAt: true,
       },
     });
+
+
 
     // Group users by month
     const growthByMonth = users.reduce(

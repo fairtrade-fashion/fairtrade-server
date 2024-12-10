@@ -1,5 +1,5 @@
 // src/orders/orders.controller.ts
-import { Controller, Get, Param, UseGuards, Query } from '@nestjs/common';
+import {Controller, Get, Param, UseGuards, Query, Body, Patch} from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -15,6 +15,7 @@ import {
 import { Order } from '@prisma/client';
 import { Roles } from 'src/common/decorators/roles.decorators';
 import { GetUser } from 'src/common/decorators/get-user.decorator';
+import {UpdateOrderStatusDto} from "./dto/update-order-status.dto";
 
 @ApiTags('orders')
 @Controller('orders')
@@ -58,5 +59,19 @@ export class OrdersController {
   @ApiResponse({ status: 200, description: "Return the user's orders." })
   async getUserOrders(@GetUser() user) {
     return this.ordersService.getUserOrders(user.userId);
+  }
+
+  @Roles('ADMIN')
+  @Patch('user/orders/status')
+  @ApiOperation({ summary: 'Update the current user\'s orders status - ADMIN' , description:'USE ONLY    PENDING,\n' +
+        '    PROCESSING,\n' +
+        '    SHIPPED,\n' +
+        '    DELIVERED,\n' +
+        '    CANCELLED,\n' +
+        '    PAID' +
+        '   to update order status'})
+  @ApiResponse({ status: 200, description: 'Return the updated user\'s orders.' })
+  async updateUserOrders( @Body() orders: UpdateOrderStatusDto) {
+    return this.ordersService.updateUserOrders(orders);
   }
 }

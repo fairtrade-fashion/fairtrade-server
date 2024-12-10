@@ -20,7 +20,7 @@ import { Client } from 'minio';
 export class ProductsService {
   private lowStockThreshold: number;
   private readonly minioClient: Client;
-  constructor(
+  constructor( 
     private prisma: PrismaService,
     private emailService: EmailService,
     private configService: ConfigService,

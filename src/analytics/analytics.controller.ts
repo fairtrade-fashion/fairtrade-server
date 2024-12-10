@@ -35,8 +35,8 @@ export class AnalyticsController {
     @Query('endDate') endDate: string,
   ) {
     return this.analyticsService.getTotalSales(
-      new Date(startDate),
-      new Date(endDate),
+      startDate,
+    endDate,
     );
   }
 
@@ -50,6 +50,7 @@ export class AnalyticsController {
   }
 
   @Get('orders-by-status')
+
   @ApiOperation({ summary: 'Get order count by status' })
   async getOrdersByStatus() {
     return this.analyticsService.getOrdersByStatus();
