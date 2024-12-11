@@ -1,6 +1,6 @@
-import { Controller, Post, UseGuards, Get, Query, Param } from '@nestjs/common';
+import { Controller, Post, Get, Query, Param } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+
 import {
   ApiTags,
   ApiOperation,
@@ -14,7 +14,6 @@ import { GetUser } from 'src/common/decorators/get-user.decorator';
 
 @ApiTags('payments')
 @Controller('payments')
-@UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
