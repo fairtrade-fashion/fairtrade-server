@@ -63,9 +63,9 @@ model Color {
 model ProductSize {
     id        String   @id @default(uuid())
     productId String
-    product   Product  @relation(fields: [productId], references: [id])
+    product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
     sizeId    String
-    size      Size     @relation(fields: [sizeId], references: [id])
+    size      Size     @relation(fields: [sizeId], references: [id], onDelete: Cascade)
     stock     Int
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
@@ -76,9 +76,9 @@ model ProductSize {
 model ProductColor {
     id        String   @id @default(uuid())
     productId String
-    product   Product  @relation(fields: [productId], references: [id])
+    product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
     colorId   String
-    color     Color    @relation(fields: [colorId], references: [id])
+    color     Color    @relation(fields: [colorId], references: [id], onDelete: Cascade)
     stock     Int
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
@@ -162,7 +162,7 @@ model Review {
     userId    String
     user      User     @relation(fields: [userId], references: [id])
     productId String
-    product   Product  @relation(fields: [productId], references: [id])
+    product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
     rating    Int
     comment   String?
     createdAt DateTime @default(now())
@@ -188,7 +188,7 @@ model Image {
     id        String   @id @default(uuid())
     url       String
     productId String
-    product   Product  @relation(fields: [productId], references: [id])
+    product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 }
