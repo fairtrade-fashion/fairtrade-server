@@ -34,10 +34,7 @@ export class AnalyticsController {
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
   ) {
-    return this.analyticsService.getTotalSales(
-      startDate,
-    endDate,
-    );
+    return this.analyticsService.getTotalSales(startDate, endDate);
   }
 
   @Get('top-selling-products')
@@ -50,7 +47,6 @@ export class AnalyticsController {
   }
 
   @Get('orders-by-status')
-
   @ApiOperation({ summary: 'Get order count by status' })
   async getOrdersByStatus() {
     return this.analyticsService.getOrdersByStatus();
@@ -68,5 +64,23 @@ export class AnalyticsController {
       new Date(startDate),
       new Date(endDate),
     );
+  }
+
+  @Get('total-orders')
+  @ApiOperation({ summary: 'Get Total Orders Count' })
+  async getTotalOrders() {
+    return this.analyticsService.getTotalOrders();
+  }
+
+  @Get('total-products')
+  @ApiOperation({ summary: 'Get Total Products Count' })
+  async getTotalProducts() {
+    return this.analyticsService.getTotalProducts();
+  }
+
+  @Get('total-customers')
+  @ApiOperation({ summary: 'Get Total Customers Count' })
+  async getTotalCustomers() {
+    return this.analyticsService.getTotalCustomers();
   }
 }
