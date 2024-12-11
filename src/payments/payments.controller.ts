@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Query, Param } from '@nestjs/common';
+import { Controller, Post, Get, Query, Param, UseGuards } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
 
 import {
@@ -11,6 +11,7 @@ import {
 } from '@nestjs/swagger';
 import { PaystackCallbackDto } from './types';
 import { GetUser } from 'src/common/decorators/get-user.decorator';
+import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 
 @ApiTags('payments')
 @Controller('payments')
@@ -19,6 +20,7 @@ export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
 
   @Post('initiate/:shippingAddressId')
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary: 'Initiate a payment',
     description: 'Initiates a payment process for the authenticated user.',
