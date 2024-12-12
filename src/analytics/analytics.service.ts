@@ -47,21 +47,60 @@ export class AnalyticsService {
   }
 
   async getTopSellingProducts(limit: number = 10) {
-    return this.prisma.orderItem.groupBy({
-      by: ['productId'], // This should be a single-level array
-      _sum: {
-        quantity: true,
-        price: true,
-      },
-      orderBy: [
-        {
-          _sum: {
-            quantity: 'desc',
-          },
+    // return this.prisma.orderItem.groupBy({
+    //   by: ['productId'],
+    //   _sum: {
+    //     quantity: true,
+    //     price: true,
+    //   },
+
+    //   orderBy: [
+    //     {
+    //       _sum: {
+    //         quantity: 'desc',
+    //       },
+    //     },
+    //   ],
+    //   take: limit, // or any other number you need
+    // });
+    return this.prisma.orderItem
+      .groupBy({
+        by: ['productId'],
+        _sum: {
+          quantity: true,
+          price: true,
         },
-      ],
-      take: limit, // or any other number you need
-    });
+        orderBy: [
+          {
+            _sum: {
+              quantity: 'desc',
+            },
+          },
+        ],
+        take: limit,
+      })
+      .then(async (groupedResults) => {
+        // Fetch additional product details for each grouped result
+        const productsDetails = await Promise.all(
+          groupedResults.map(async (item) => {
+            const product = await this.prisma.product.findUnique({
+              where: { id: item.productId },
+              select: {
+                id: true,
+                name: true,
+                // Add any other product fields you want to include
+              },
+            });
+
+            return {
+              ...item,
+              product,
+            };
+          }),
+        );
+
+        return productsDetails;
+      });
   }
   async getOrdersByStatus(): Promise<any> {
     return this.prisma.order.groupBy({

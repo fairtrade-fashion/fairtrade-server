@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -8,7 +7,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { Order, Prisma, OrderStatus } from '@prisma/client';
 import { EmailService } from 'src/email/email.service';
 import { AdminAlertsGateway } from 'src/admin-alerts/admin-alerts.gateway';
-import {UpdateOrderStatusDto} from "./dto/update-order-status.dto";
+import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 
 @Injectable()
 export class OrdersService {
@@ -157,8 +156,7 @@ export class OrdersService {
     return updatedOrder;
   }
 
-
-  async updateUserOrders( updateOrderStatusDto: UpdateOrderStatusDto) {
+  async updateUserOrders(updateOrderStatusDto: UpdateOrderStatusDto) {
     const { orderId, status } = updateOrderStatusDto;
 
     const order = await this.prisma.order.findUnique({
