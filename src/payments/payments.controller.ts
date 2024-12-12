@@ -1,4 +1,12 @@
-import { Controller, Post, Get, Query, Param, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Query,
+  Param,
+  UseGuards,
+  Res,
+} from '@nestjs/common';
 import { PaymentsService } from './payments.service';
 
 import {
@@ -12,6 +20,7 @@ import {
 import { PaystackCallbackDto } from './types';
 import { GetUser } from 'src/common/decorators/get-user.decorator';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { Response } from 'express';
 
 @ApiTags('payments')
 @Controller('payments')
@@ -74,8 +83,8 @@ export class PaymentsController {
   @ApiResponse({ status: 400, description: 'Bad request' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
-  async verifyPayment(@Query('reference') query: string) {
+  async verifyPayment(@Query('reference') query: string, @Res() res: Response) {
     await this.paymentsService.verifyPayment(query);
-    return { message: 'Payment verified successfully' };
+    res.redirect('https://fairrtradee.com/order');
   }
 }

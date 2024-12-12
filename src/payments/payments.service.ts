@@ -14,16 +14,18 @@ import {
   PaystackVerifyTransactionResponseDto,
 } from './types';
 import axios from 'axios';
-import {
-  PAYSTACK_SUCCESS_STATUS,
-  PAYSTACK_TRANSACTION_INI_URL,
-  PAYSTACK_TRANSACTION_VERIFY_BASE_URL,
-} from 'src/config/constants';
+import { PAYSTACK_TRANSACTION_INI_URL } from 'src/config/constants';
 import { ShippingAddressesService } from 'src/shipping-addresses/shipping-addresses.service';
 import { OrderStatus } from '@prisma/client';
 
 @Injectable()
 export class PaymentsService {
+  private readonly PAYSTACK_TRANSACTION_VERIFY_BASE_URL =
+    'https://api.paystack.co/transaction/verify';
+  private readonly PAYSTACK_SUCCESS_STATUS = 'success';
+  private readonly SUCCESSFUL_PAYMENT_REDIRECT_URL =
+    'https://fairrtradee.com/order';
+
   constructor(
     private configService: ConfigService,
     private prisma: PrismaService,
@@ -111,70 +113,147 @@ export class PaymentsService {
     }
   }
 
-  async verifyPayment(query: string): Promise<void> {
-    const reference = query;
+  //   async verifyPayment(query: string): Promise<void> {
+  //     const reference = query;
 
+  //     const existingOrder = await this.prisma.order.findFirst({
+  //       where: { paymentReference: reference },
+  //     });
+  //     console.log(existingOrder);
+
+  //     if (existingOrder && existingOrder.status === OrderStatus.PAID) {
+  //       throw new ConflictException('Order has already been verified ');
+  //     }
+
+  //     try {
+  //       const response = await axios.get<PaystackVerifyTransactionResponseDto>(
+  //         `${PAYSTACK_TRANSACTION_VERIFY_BASE_URL}/${reference}`,
+  //         {
+  //           headers: {
+  //             Authorization: `Bearer ${this.getPaystackSecretKey()}`,
+  //           },
+  //         },
+  //       );
+
+  //       if (
+  //         response.data.status &&
+  //         response.data.data.status === PAYSTACK_SUCCESS_STATUS
+  //       ) {
+  //         const cartId = response.data.data.metadata.cart_id;
+  //         const userId = response.data.data.metadata.user_id.toString();
+  //         const shippingAddressId =
+  //           response.data.data.metadata.shipping_address_id;
+
+  //         const cart = await this.prisma.cart.findUnique({
+  //           where: { id: cartId },
+  //           include: { items: { include: { product: true } } },
+  //         });
+
+  //         if (!cart) {
+  //           throw new BadRequestException('Cart not found');
+  //         }
+
+  //         const total = cart.items.reduce(
+  //           (sum, item) => sum + item.quantity * item.price,
+  //           0,
+  //         );
+
+  //         await this.ordersService.createOrder({
+  //           userId,
+  //           total,
+  //           items: cart.items.map((item) => ({
+  //             productId: item.productId,
+  //             quantity: item.quantity,
+  //             price: item.price,
+  //           })),
+  //           shipping_address_id: shippingAddressId,
+  //           reference: reference,
+  //         });
+
+  //         await this.prisma.cartItem.deleteMany({ where: { cartId } });
+  //       } else {
+  //         throw new BadRequestException('Payment verification failed');
+  //       }
+  //     } catch (error) {
+  //       console.log(error);
+  //       throw new BadRequestException('Error Verifiying payment');
+  //     }
+  //   }
+
+  async verifyPayment(reference: string): Promise<{ redirectUrl: string }> {
     const existingOrder = await this.prisma.order.findFirst({
       where: { paymentReference: reference },
     });
-    console.log(existingOrder);
-
     if (existingOrder && existingOrder.status === OrderStatus.PAID) {
       throw new ConflictException('Order has already been verified ');
     }
-
     try {
-      const response = await axios.get<PaystackVerifyTransactionResponseDto>(
-        `${PAYSTACK_TRANSACTION_VERIFY_BASE_URL}/${reference}`,
+      const response = await this.verifyPaymentTransaction(reference);
+
+      if (this.isPaymentSuccessful(response)) {
+        await this.proccessPaymentDetails(response, reference);
+
+        return { redirectUrl: this.SUCCESSFUL_PAYMENT_REDIRECT_URL };
+      }
+      throw new BadRequestException('Payment verification failed');
+    } catch (error) {
+      console.log('payment verification error', error);
+      throw new BadRequestException('Error Verifiying payment');
+    }
+  }
+
+  private async verifyPaymentTransaction(
+    reference: string,
+  ): Promise<PaystackVerifyTransactionResponseDto> {
+    return (
+      await axios.get<PaystackVerifyTransactionResponseDto>(
+        `${this.PAYSTACK_TRANSACTION_VERIFY_BASE_URL}/${reference}`,
         {
           headers: {
             Authorization: `Bearer ${this.getPaystackSecretKey()}`,
           },
         },
-      );
+      )
+    ).data;
+  }
 
-      if (
-        response.data.status &&
-        response.data.data.status === PAYSTACK_SUCCESS_STATUS
-      ) {
-        const cartId = response.data.data.metadata.cart_id;
-        const userId = response.data.data.metadata.user_id.toString();
-        const shippingAddressId =
-          response.data.data.metadata.shipping_address_id;
+  private isPaymentSuccessful(
+    response: PaystackVerifyTransactionResponseDto,
+  ): boolean {
+    return (
+      response.status && response.data.status === this.PAYSTACK_SUCCESS_STATUS
+    );
+  }
+  private async proccessPaymentDetails(
+    response: PaystackVerifyTransactionResponseDto,
+    reference: string,
+  ): Promise<void> {
+    const { cart_id, user_id, shipping_address_id } = response.data.metadata;
+    const cart = await this.prisma.cart.findUnique({
+      where: { id: cart_id },
+      include: { items: { include: { product: true } } },
+    });
 
-        const cart = await this.prisma.cart.findUnique({
-          where: { id: cartId },
-          include: { items: { include: { product: true } } },
-        });
-
-        if (!cart) {
-          throw new BadRequestException('Cart not found');
-        }
-
-        const total = cart.items.reduce(
-          (sum, item) => sum + item.quantity * item.price,
-          0,
-        );
-
-        await this.ordersService.createOrder({
-          userId,
-          total,
-          items: cart.items.map((item) => ({
-            productId: item.productId,
-            quantity: item.quantity,
-            price: item.price,
-          })),
-          shipping_address_id: shippingAddressId,
-          reference: reference,
-        });
-
-        await this.prisma.cartItem.deleteMany({ where: { cartId } });
-      } else {
-        throw new BadRequestException('Payment verification failed');
-      }
-    } catch (error) {
-      console.log(error);
-      throw new BadRequestException('Error Verifiying payment');
+    if (!cart) {
+      throw new BadRequestException('Cart not found');
     }
+
+    const total = cart.items.reduce(
+      (sum, item) => sum + item.quantity * item.price,
+      0,
+    );
+
+    await this.ordersService.createOrder({
+      userId: user_id.toString(),
+      total,
+      items: cart.items.map((item) => ({
+        productId: item.productId,
+        quantity: item.quantity,
+        price: item.price,
+      })),
+      shipping_address_id: shipping_address_id,
+      reference: reference,
+    });
+    await this.prisma.cartItem.deleteMany({ where: { cartId: cart_id } });
   }
 }
