@@ -31,7 +31,7 @@ model Product {
     sku           String         @unique
     stock         Int
     categoryId    String
-    category      Category       @relation(fields: [categoryId], references: [id])
+    category      Category       @relation(fields: [categoryId], references: [id], onDelete: Cascade)
     images        Image[]
     createdAt     DateTime       @default(now())
     updatedAt     DateTime       @updatedAt
@@ -90,7 +90,7 @@ model Category {
     id        String     @id @default(uuid())
     name      String     @unique
     parentId  String?
-    parent    Category?  @relation("SubCategories", fields: [parentId], references: [id])
+    parent    Category?  @relation("SubCategories", fields: [parentId], references: [id], onDelete: Cascade)
     children  Category[] @relation("SubCategories")
     products  Product[]
     createdAt DateTime   @default(now())
@@ -114,9 +114,9 @@ model Order {
 model OrderItem {
     id        String  @id @default(uuid())
     orderId   String
-    order     Order   @relation(fields: [orderId], references: [id])
+    order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
     productId String
-    product   Product @relation(fields: [productId], references: [id])
+    product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
     quantity  Int
     price     Float
 }
@@ -133,9 +133,9 @@ model Cart {
 model CartItem {
     id        String  @id @default(uuid())
     cartId    String
-    cart      Cart    @relation(fields: [cartId], references: [id])
+    cart      Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
     productId String
-    product   Product @relation(fields: [productId], references: [id])
+    product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
     quantity  Int
     price     Float
 }
@@ -152,15 +152,15 @@ model Wishlist {
 model WishlistItem {
     id         String   @id @default(uuid())
     wishlistId String
-    wishlist   Wishlist @relation(fields: [wishlistId], references: [id])
+    wishlist   Wishlist @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
     productId  String
-    product    Product  @relation(fields: [productId], references: [id])
+    product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
 
 model Review {
     id        String   @id @default(uuid())
     userId    String
-    user      User     @relation(fields: [userId], references: [id])
+    user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
     productId String
     product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
     rating    Int
@@ -172,7 +172,7 @@ model Review {
 model Address {
     id            String  @id @default(uuid())
     userId        String
-    user          User    @relation(fields: [userId], references: [id])
+    user          User    @relation(fields: [userId], references: [id], onDelete: Cascade)
     streetAddress String
     fullName      String
     city          String

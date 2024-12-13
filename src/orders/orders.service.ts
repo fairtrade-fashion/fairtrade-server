@@ -23,7 +23,17 @@ export class OrdersService {
     return this.prisma.order.findUnique({
       where: orderWhereUniqueInput,
       include: {
-        items: true,
+        items: {
+          include: {
+            product: {
+              include: {
+                sizes: true,
+                colors: true,
+                images: true,
+              },
+            },
+          },
+        },
         shippingAddress: true,
       },
     });
@@ -44,7 +54,17 @@ export class OrdersService {
       where,
       orderBy,
       include: {
-        items: true,
+        items: {
+          include: {
+            product: {
+              include: {
+                sizes: true,
+                colors: true,
+                images: true,
+              },
+            },
+          },
+        },
         shippingAddress: true,
       },
     });
@@ -105,7 +125,17 @@ export class OrdersService {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
       include: {
-        items: { include: { product: true } },
+        items: {
+          include: {
+            product: {
+              include: {
+                sizes: true,
+                colors: true,
+                images: true,
+              },
+            },
+          },
+        },
         user: true,
       },
     });
