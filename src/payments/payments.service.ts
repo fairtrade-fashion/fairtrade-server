@@ -187,19 +187,20 @@ export class PaymentsService {
     if (existingOrder && existingOrder.status === OrderStatus.PAID) {
       throw new ConflictException('Order has already been verified ');
     }
-    try {
-      const response = await this.verifyPaymentTransaction(reference);
+    // try {
+    const response = await this.verifyPaymentTransaction(reference);
 
-      if (this.isPaymentSuccessful(response)) {
-        await this.proccessPaymentDetails(response, reference);
+    if (this.isPaymentSuccessful(response)) {
+      await this.proccessPaymentDetails(response, reference);
 
-        return { redirectUrl: this.SUCCESSFUL_PAYMENT_REDIRECT_URL };
-      }
+      return { redirectUrl: this.SUCCESSFUL_PAYMENT_REDIRECT_URL };
+    } else {
       throw new BadRequestException('Payment verification failed');
-    } catch (error) {
-      console.log('payment verification error', error);
-      throw new BadRequestException('Error Verifiying payment');
     }
+    // } catch (error) {
+    //   console.log('payment verification error', error);
+    //   throw new BadRequestException('Error Verifiying payment');
+    // }
   }
 
   private async verifyPaymentTransaction(
